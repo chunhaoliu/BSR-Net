@@ -20,15 +20,15 @@ sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve
 import pipeline as T  # noqa: E402
 
 RES = T.OUT / "results"
-# fixed categorical order (blue, orange, aqua) + neutral gray for the physics prior; line style is the secondary encoding
-STYLE = {"Ours-MS": ("#2a78d6", "-"), "iTransformer+prior+series": ("#eb6834", "--"),
-         "Ours-MS w/o bank rollout": ("#1baf7a", "-."), "A_fit": ("#6b6b66", ":")}
+# methods differ by color only (solid lines); colors match Fig. 1 of the paper (orange BSR-Net, blue physics prior, black truth)
+STYLE = {"A_fit": ("#0070C0", "-"), "iTransformer+prior+series": ("#00B050", "-"),
+         "Ours-MS w/o bank rollout": ("#7030A0", "-"), "Ours-MS": ("#ED7D31", "-")}  # BSR-Net drawn last (on top)
 KEYS = {"Ours-MS": "ours2s", "iTransformer+prior+series": "itransformer_priors", "Ours-MS w/o bank rollout": "ours2s_nb", "A_fit": "afit"}
 LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "Ours-MS w/o bank rollout": "BSR-Net w/o bank-schedule rollout",
          "iTransformer+prior+series": "iTransformer + prior + series", "Ours-MS": "BSR-Net"}  # paper name of ours2s
 plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman", "DejaVu Serif"], "mathtext.fontset": "stix",
-                     "font.size": 8, "axes.linewidth": 0.6, "axes.grid": True, "grid.color": "#e4e4e0", "grid.linewidth": 0.5,
-                     "axes.spines.top": False, "axes.spines.right": False, "legend.frameon": False, "lines.linewidth": 1.4,
+                     "font.size": 9, "axes.linewidth": 0.6, "axes.grid": True, "grid.color": "#e4e4e0", "grid.linewidth": 0.5,
+                     "axes.spines.top": False, "axes.axisbelow": True, "axes.spines.right": False, "legend.frameon": False, "lines.linewidth": 1.4,
                      "xtick.major.width": 0.6, "ytick.major.width": 0.6, "savefig.bbox": "tight", "savefig.pad_inches": 0.02})
 
 
@@ -39,7 +39,7 @@ def fig_error_time(out):
     for ax, sigma in zip(axes, (50, 200)):
         for name, (color, ls) in STYLE.items():
             ax.plot(t, z[f"{KEYS[name]}/sigma{sigma}/step"].mean(0), color=color, ls=ls, label=LABEL[name])
-        ax.set_title(rf"$\sigma = {sigma}$ m", fontsize=8)
+        ax.set_title(rf"$\sigma = {sigma}$ m", fontsize=9)
         ax.set_xlabel("Prediction time (s)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     axes[0].set_ylabel("Position error (km)"); axes[0].set_ylim(bottom=0)
     axes[0].legend(loc="upper left")
@@ -55,7 +55,7 @@ def fig_noise(out):
         for name, (color, ls) in STYLE.items():
             r = d[d.method == name].sort_values("sigma_m")
             ax.plot(r.sigma_m, r.ade_mean, color=color, ls=ls, marker="o", ms=3.5, mec="white", mew=0.6, label=LABEL[name])
-        ax.set_title(title, fontsize=8); ax.set_xlabel(r"Measurement noise $\sigma$ (m)"); ax.set_xticks([0, 50, 100, 200])
+        ax.set_title(title, fontsize=9); ax.set_xlabel(r"Measurement noise $\sigma$ (m)"); ax.set_xticks([0, 50, 100, 200])
     axes[0].set_ylabel("ADE over 256 s (km)"); axes[0].set_ylim(bottom=0)
     fig.legend(*axes[0].get_legend_handles_labels(), loc="upper center", ncol=4, bbox_to_anchor=(0.5, 1.08))
     fig.savefig(out / "fig_noise_mismatch.pdf"); plt.close(fig)
@@ -84,14 +84,14 @@ def fig_case(out, sigma=50):
     fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.2))
     tf = np.arange(1, 257)
     for ax, f, ylabel in ((axes[0], cross, "Cross-track offset (km)"), (axes[1], lambda x: x[:, 2] - pri[:, 2], "Vertical offset (km)")):
-        ax.axhline(0, color=STYLE["A_fit"][0], ls=":", lw=1.4, label=LABEL["A_fit"])
+        ax.axhline(0, color=STYLE["A_fit"][0], lw=1.4, label=LABEL["A_fit"])
         ax.plot(tf, f(tgt), color="black", lw=1.2, label="Truth"); ax.plot(tf, f(p), color=STYLE["Ours-MS"][0], label=LABEL["Ours-MS"])
         ax.set_xlabel("Prediction time (s)"); ax.set_ylabel(ylabel); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     ax = axes[2]
     blocks = np.arange(T.BANK_BLOCKS + 1) * (256 // T.BANK_BLOCKS)
     deg = lambda x: np.rad2deg(np.append(x, x[-1]))
     ax.step(blocks, deg(ex["bank_future"][i].numpy()), where="post", color="black", lw=1.2, label="Truth")
-    ax.step(blocks, deg(np.full(T.BANK_BLOCKS, ex["aero"][i, 2].item())), where="post", color=STYLE["A_fit"][0], ls=":", label="Held (prior)")
+    ax.step(blocks, deg(np.full(T.BANK_BLOCKS, ex["aero"][i, 2].item())), where="post", color=STYLE["A_fit"][0], label="Held (prior)")
     ax.step(blocks, deg(b), where="post", color=STYLE["Ours-MS"][0], label="Predicted plan")
     ax.set_xlabel("Prediction time (s)"); ax.set_ylabel("Bank angle (deg)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     handles = axes[2].get_legend_handles_labels()[0]
@@ -103,8 +103,9 @@ def fig_case(out, sigma=50):
 
 
 STRATA = [f"{v}__{l}" for v in ("quasi_equilibrium", "skip_glide") for l in ("longitudinal", "turning", "weaving")]
-LATERAL = {"longitudinal": "#2a78d6", "turning": "#eb6834", "weaving": "#1baf7a"}
-VERTICAL = {"quasi_equilibrium": ("-", "quasi-equilibrium glide"), "skip_glide": ("--", "skip glide")}
+# color only: hue = lateral maneuver, dark/light shade = vertical profile (quasi-equilibrium / skip glide)
+LATERAL = {"longitudinal": ("#0070C0", "#8FC1EA"), "turning": ("#ED7D31", "#F6BE93"), "weaving": ("#00B050", "#8FDCAE")}
+VERTICAL = {"quasi_equilibrium": (0, "quasi-equilibrium glide"), "skip_glide": (1, "skip glide")}
 R_EARTH = 6.378e6
 
 
@@ -118,7 +119,7 @@ def fig_dataset(out):
         idx = np.flatnonzero(strata == s)
         turn = np.abs(np.unwrap(clean[idx, :, 5], axis=1)[:, -1] - clean[idx, 0, 5])
         i = idx[np.argsort(turn)[len(idx) // 2]]
-        v, l = s.split("__"); ls, c = VERTICAL[v][0], LATERAL[l]
+        v, l = s.split("__"); ls, c = "-", LATERAL[l][VERTICAL[v][0]]
         lon, lat, psi0 = clean[i, :, 1], clean[i, :, 2], clean[i, 0, 5]
         dist = np.arccos(np.clip(np.sin(lat[0]) * np.sin(lat) + np.cos(lat[0]) * np.cos(lat) * np.cos(lon - lon[0]), -1, 1))
         bearing = np.arctan2(np.sin(lon - lon[0]) * np.cos(lat), np.cos(lat[0]) * np.sin(lat) - np.sin(lat[0]) * np.cos(lat) * np.cos(lon - lon[0]))
@@ -132,9 +133,8 @@ def fig_dataset(out):
     axes[2].set_xlabel("Time (s)"); axes[2].set_ylabel("Bank angle (deg)")
     for ax in axes[1:]:
         ax.set_xlim(0, clean.shape[1] - 1)
-    handles = [plt.Line2D([], [], color=c, lw=1.4, label=l) for l, c in LATERAL.items()]
-    handles += [plt.Line2D([], [], color="#6b6b66", ls=ls, lw=1.4, label=n) for ls, n in VERTICAL.values()]
-    fig.legend(handles=handles, loc="upper center", ncol=5, bbox_to_anchor=(0.5, 1.08))
+    handles = [plt.Line2D([], [], color=c[k], lw=1.4, label=f"{l}, {n}") for k, n in VERTICAL.values() for l, c in LATERAL.items()]
+    fig.legend(handles=handles, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.15))
     fig.tight_layout(w_pad=1.0)
     fig.savefig(out / "fig_dataset.pdf"); plt.close(fig)
 
@@ -183,7 +183,7 @@ def fig_tail_direction(out):
             traj = np.sort(np.bincount(rows, a) / np.bincount(rows))
             color, ls = STYLE[name]
             ax.plot(traj, np.arange(1, len(traj) + 1) / len(traj), color=color, ls=ls, label=LABEL[name])
-        ax.set_title(rf"$\sigma = {sigma}$ m", fontsize=8); ax.set_xlabel("Per-trajectory ADE over 256 s (km)")
+        ax.set_title(rf"$\sigma = {sigma}$ m", fontsize=9); ax.set_xlabel("Per-trajectory ADE over 256 s (km)")
         ax.set_xlim(0, 20); ax.set_ylim(0, 1)
     axes[0].set_ylabel("Fraction of test trajectories")
     ex = T.examples(data, "holdout", 200); idx = torch.arange(len(data["starts"]))
@@ -194,8 +194,8 @@ def fig_tail_direction(out):
     x, w = np.arange(3), 0.26
     for k, name in enumerate(names):
         axes[2].bar(x + (k - 1) * w, split[name], w - 0.02, color=STYLE[name][0], label=LABEL[name])
-    axes[2].set_xticks(x, ["Along track", "Cross track", "Vertical"]); axes[2].set_ylabel("Mean |error| (km)")
-    axes[2].set_title(r"$\sigma = 200$ m", fontsize=8); axes[2].grid(axis="x", visible=False)
+    axes[2].set_xticks(x, ["Along", "Cross", "Vertical"]); axes[2].set_ylabel("Mean |error| (km)")
+    axes[2].set_title(r"$\sigma = 200$ m", fontsize=9); axes[2].grid(axis="x", visible=False)
     fig.legend(*axes[0].get_legend_handles_labels(), loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.08))
     fig.tight_layout(w_pad=1.0)
     fig.savefig(out / "fig_tail_direction.pdf"); plt.close(fig)
@@ -230,19 +230,19 @@ def fig_cases(out, sigma=50):
         normal = np.stack((-along[:, 1], along[:, 0]), 1)
         cross = lambda y: ((y[:, :2] - pri[w][:, :2]) * normal).sum(1)  # horizontal offset from the prior, left positive
         ax, axh = axes[0, col], axes[1, col]
-        axh.plot(np.arange(-255, 1), alt(hist), color="#b9b9b4", lw=1.0, label="Observed track")
+        axh.plot(np.arange(-255, 1), alt(hist), color="#00B0F0", lw=1.0, label="Observed track")
         tf = np.arange(1, 257)
         for name, y in tracks.items():
             color, ls = ("black", "-") if name == "Truth" else STYLE[name]
             ax.plot(tf, cross(y), color=color, ls=ls, lw=1.2)
             axh.plot(tf, alt(y), color=color, ls=ls, lw=1.2, label="Truth" if name == "Truth" else LABEL[name])
-        ax.set_title(title, fontsize=8); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
+        ax.set_title(title, fontsize=9); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
         ax.set_xlabel("Prediction time (s)")
         axh.set_xlabel("Time from newest measurement (s)"); axh.set_xlim(-255, 256)
         ade = {k: np.linalg.norm(v - tgt[w], axis=-1).mean() for k, v in tracks.items() if k != "Truth"}
         print(f"{s}: window {i}, ADE " + ", ".join(f"{k} {v:.2f}" for k, v in ade.items()))
     axes[0, 0].set_ylabel("Cross-track offset from prior (km)"); axes[1, 0].set_ylabel("Altitude (km)")
-    fig.legend(*axes[1, 0].get_legend_handles_labels(), loc="upper center", ncol=5, bbox_to_anchor=(0.5, 1.04))
+    fig.legend(*axes[1, 0].get_legend_handles_labels(), loc="upper center", ncol=5, bbox_to_anchor=(0.5, 1.065))
     fig.tight_layout(h_pad=0.8, w_pad=1.0)
     fig.savefig(out / "fig_cases.pdf"); plt.close(fig)
 
