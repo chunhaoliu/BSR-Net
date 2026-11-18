@@ -95,6 +95,7 @@ Learning rates of the remaining baselines: `transformer`, `itransformer`, `af_ci
 | `results/holdout_K16_summary.csv`, `results/holdout_K64_summary.csv` | Schedule resolution (Table 8) |
 | `results/*_rel_summary.csv` | iTransformer+prior+series with relative aerodynamic inputs (Section 5.5) |
 | `results/devaero_metrics.csv` | Development check of the aerodynamic input representation: relative- and absolute-input BSR-Net and iTransformer+prior+series on 180 separately generated trajectories, σ = 0 and 200 m (Section 5.5) |
+| `results/robust_metrics.csv` | Sensor degradation without retraining (Section 5.5, Table 9): misspecified noise level (true vs assumed σ) and 20%/40% random measurement dropouts filled by linear interpolation, every fifth test window, A_fit / iTransformer+prior+series / BSR-Net w/o rollout / BSR-Net per seed, with trajectory-level win rate and Wilcoxon p |
 | `results/latency.csv` | Table 9 |
 | `results/tuning.csv` | Learning-rate selection (Table 3) |
 | `results/lam0_holdout.txt`, `results/holdout_extras.txt` | Label-free schedule (Section 5.4); percentiles, error split, AUROC, GFLOPs (Section 5.3, Table 9) |
