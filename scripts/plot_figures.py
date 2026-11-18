@@ -27,7 +27,7 @@ STYLE = {"A_fit": ("#0070C0", "-"), "iTransformer+prior+series": ("#00B050", "-"
 KEYS = {"Ours-MS": "ours2s", "iTransformer+prior+series": "itransformer_priors", "A_fit": "afit"}
 LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "iTransformer+prior+series": "iTransformer+prior+series",
          "Ours-MS": "BSR-Net"}  # paper name of ours2s
-LW = {"Ours-MS": 2.2, "Truth": 1.6}  # every other line 1.3
+LW = {"Ours-MS": 1.6, "Truth": 1.6}  # every other line 1.3
 OBSERVED = "#A6A6A6"
 
 
@@ -36,11 +36,9 @@ def lw(name):
 
 
 def legend(ax, *args, **kw):
-    """Legend with the BSR-Net entry in bold."""
+    """Legend in a thin black frame."""
     leg = ax.legend(*args, **kw)
     leg.get_frame().set_linewidth(0.6)
-    for txt in leg.get_texts():
-        txt.set_fontweight("bold" if txt.get_text() == LABEL["Ours-MS"] else "normal")
     return leg
 
 
