@@ -24,21 +24,30 @@ RES = T.OUT / "results"
 STYLE = {"A_fit": ("#0070C0", "-"), "iTransformer+prior+series": ("#00B050", "-"),
          "Ours-MS w/o bank rollout": ("#7030A0", "-"), "Ours-MS": ("#ED7D31", "-")}  # BSR-Net drawn last (on top)
 KEYS = {"Ours-MS": "ours2s", "iTransformer+prior+series": "itransformer_priors", "Ours-MS w/o bank rollout": "ours2s_nb", "A_fit": "afit"}
-LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "Ours-MS w/o bank rollout": "BSR-Net w/o bank-schedule rollout",
-         "iTransformer+prior+series": "iTransformer + prior + series", "Ours-MS": "BSR-Net"}  # paper name of ours2s
-WIDTH = 7.0  # every figure is exactly this wide (in), so all print at the same font size
+LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "Ours-MS w/o bank rollout": "BSR-Net w/o rollout",
+         "iTransformer+prior+series": "iTransformer+prior+series", "Ours-MS": "BSR-Net"}  # paper name of ours2s
+WIDTH = 6.45  # drawn at the final text width (468 pt) and included at natural size, one PDF per panel (IEEE subfigures)
 plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman", "DejaVu Serif"], "mathtext.fontset": "stix",
-                     "font.size": 9, "axes.titlesize": 9, "axes.linewidth": 0.7, "axes.grid": True, "grid.color": "#e4e4e0",
+                     "font.size": 8.5, "axes.linewidth": 0.7, "axes.grid": True, "grid.color": "#e4e4e0",
                      "grid.linewidth": 0.5, "axes.spines.top": False, "axes.axisbelow": True, "axes.spines.right": False,
                      "lines.linewidth": 1.8, "legend.frameon": True, "legend.facecolor": "white", "legend.edgecolor": "none",
                      "legend.framealpha": 1.0, "legend.borderpad": 0.3, "legend.borderaxespad": 0.3, "legend.labelspacing": 0.3,
                      "legend.handlelength": 1.6, "xtick.major.width": 0.7, "ytick.major.width": 0.7, "figure.constrained_layout.use": True})
 
 
-def tag(axes, titles=None):
-    """Panel labels (a), (b), ... as titles, optionally followed by a short title."""
-    for k, ax in enumerate(np.ravel(axes)):
-        ax.set_title(f"({chr(97 + k)})" + (f" {titles[k]}" if titles and titles[k] else ""))
+def save_panels(fig, axes, out, name):
+    """One PDF per panel, name_a.pdf, name_b.pdf, ...; LaTeX sets the (a), (b) labels below each subfloat."""
+    axes = list(np.ravel(axes))
+    fig.canvas.draw(); fig.set_layout_engine("none")  # freeze the joint layout so every panel keeps its size and scale
+    box = [ax.get_tightbbox(fig.canvas.get_renderer()).transformed(fig.dpi_scale_trans.inverted()) for ax in axes]
+    row = [ax.get_subplotspec().rowspan.start for ax in axes]
+    for k, ax in enumerate(axes):
+        for a in axes:
+            a.set_visible(a is ax)
+        same = [b for b, r in zip(box, row) if r == row[k]]  # one height per row, so the subfloats align
+        crop = matplotlib.transforms.Bbox([[box[k].x0, min(b.y0 for b in same)], [box[k].x1, max(b.y1 for b in same)]])
+        fig.savefig(out / f"{name}_{chr(97 + k)}.pdf", bbox_inches=crop.padded(0.02))
+    plt.close(fig)
 
 
 def fig_error_time(out):
@@ -59,21 +68,19 @@ def fig_error_time(out):
         for c in ax.indicate_inset_zoom(ins, edgecolor="black", alpha=1.0, lw=0.6).connectors:
             c.set_visible(False)
         ax.set_xlabel("Prediction time (s)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
-    tag(axes, [r"$\sigma = 50$ m", r"$\sigma = 200$ m"])
     axes[0].set_ylabel("Position error (km)"); axes[0].set_ylim(bottom=0)
     axes[0].legend(loc="upper left")
-    fig.savefig(out / "fig_error_time.pdf"); plt.close(fig)
+    save_panels(fig, axes, out, "fig_error_time")
 
 
 def fig_noise(out):
     """Five conditions (ADE vs noise) and, in the sixth panel, the gain of BSR-Net over iTransformer+prior+series at 200 m."""
     fig, axes = plt.subplots(2, 3, figsize=(WIDTH, 4.6))
-    panels = (("holdout", "Nominal", "Nominal"), ("mismatch15", r"Density, $A=15\%$", "Density 15%"),
-              ("mismatch30", r"Density, $A=30\%$", "Density 30%"),
-              ("mismatchaero110_90", r"$C_L\times1.1$, $C_D\times0.9$", "$L/D$ +22%"),
-              ("mismatchaero90_110", r"$C_L\times0.9$, $C_D\times1.1$", "$L/D$ −18%"))
+    panels = (("holdout", "Nominal"), ("mismatch15", "Density 15%"), ("mismatch30", "Density 30%"),
+              ("mismatchaero110_90", "$L/D$ +22%"),
+              ("mismatchaero90_110", "$L/D$ −18%"))
     gain = []
-    for ax, (split, title, _) in zip(axes.flat, panels):
+    for ax, (split, _) in zip(axes.flat, panels):
         d = pd.read_csv(RES / f"{split}_summary.csv")
         d = d[(d.group == "overall") & (d.horizon_s == 256)]
         for name, (color, ls) in STYLE.items():
@@ -89,11 +96,10 @@ def fig_noise(out):
     ax.bar(x, gain, 0.6, color=STYLE["Ours-MS"][0])
     for k, g in enumerate(gain):
         ax.text(k, g + 0.4, f"{g:.1f}", ha="center", va="bottom")
-    ax.set_xticks(x, [p[2] for p in panels], rotation=35, ha="right", rotation_mode="anchor"); ax.set_ylim(0, 21); ax.grid(axis="x", visible=False)
-    ax.set_ylabel("ADE reduction vs.\niTransformer + prior + series (%)")
-    tag(axes, [p[1] for p in panels] + [r"Margin at $\sigma=200$ m"])
+    ax.set_xticks(x, [p[1] for p in panels], rotation=35, ha="right", rotation_mode="anchor"); ax.set_ylim(0, 21); ax.grid(axis="x", visible=False)
+    ax.set_ylabel("ADE reduction vs.\niTransformer+prior+series (%)")
     axes[0, 0].legend(loc="upper left")
-    fig.savefig(out / "fig_noise_mismatch.pdf"); plt.close(fig)
+    save_panels(fig, axes, out, "fig_noise_mismatch")
 
 
 def _typical_case(sigma=50):
@@ -137,14 +143,13 @@ def fig_case(out, sigma=50):
     ax.set_xlabel("Prediction time (s)"); ax.set_ylabel("Bank angle (deg)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     axes[1].set_ylim(-9.5, 0.5)
     axes[1].legend(*ax.get_legend_handles_labels(), loc="lower right")
-    tag(axes)
-    fig.savefig(out / "fig_case_bank.pdf"); plt.close(fig)
+    save_panels(fig, axes, out, "fig_case_bank")
     print(f"case window {i}: ADE A_fit {ea:.2f} km, Ours-MS {eo:.2f} km")
 
 
 STRATA = [f"{v}__{l}" for v in ("quasi_equilibrium", "skip_glide") for l in ("longitudinal", "turning", "weaving")]
 LATERAL = {"longitudinal": "#0070C0", "turning": "#ED7D31", "weaving": "#00B050"}  # one row per vertical regime
-VERTICAL = {"quasi_equilibrium": (0, "Quasi-equilibrium glide"), "skip_glide": (1, "Skip glide")}
+VERTICAL = {"quasi_equilibrium": 0, "skip_glide": 1}  # row
 R_EARTH = 6.378e6
 
 
@@ -152,17 +157,13 @@ def fig_dataset(out):
     """One test trajectory per joint stratum (median total heading change within the stratum): ground track, altitude, bank."""
     with np.load(T.DATA / "hgv_confirmatory_holdout.npz") as d:
         clean, strata, bank = d["clean_trajectories"], d["joint_strata"], d["bank_achieved"]
-    fig = plt.figure(figsize=(WIDTH, 4.5))
-    rows = fig.subfigures(2, 1)
-    grid = [sf.subplots(1, 3, gridspec_kw={"width_ratios": [1.15, 1, 1]}) for sf in rows]
-    for sf, (_, name) in zip(rows, VERTICAL.values()):
-        sf.suptitle(name, fontsize=9)
+    fig, grid = plt.subplots(2, 3, figsize=(WIDTH, 4.2), gridspec_kw={"width_ratios": [1.15, 1, 1]})
     t = np.arange(clean.shape[1])
     for s in STRATA:
         idx = np.flatnonzero(strata == s)
         turn = np.abs(np.unwrap(clean[idx, :, 5], axis=1)[:, -1] - clean[idx, 0, 5])
         i = idx[np.argsort(turn)[len(idx) // 2]]
-        v, l = s.split("__"); ls, c, axes = "-", LATERAL[l], grid[VERTICAL[v][0]]
+        v, l = s.split("__"); ls, c, axes = "-", LATERAL[l], grid[VERTICAL[v]]
         lon, lat, psi0 = clean[i, :, 1], clean[i, :, 2], clean[i, 0, 5]
         dist = np.arccos(np.clip(np.sin(lat[0]) * np.sin(lat) + np.cos(lat[0]) * np.cos(lat) * np.cos(lon - lon[0]), -1, 1))
         bearing = np.arctan2(np.sin(lon - lon[0]) * np.cos(lat), np.cos(lat[0]) * np.sin(lat) - np.sin(lat[0]) * np.cos(lat) * np.cos(lon - lon[0]))
@@ -177,9 +178,8 @@ def fig_dataset(out):
         axes[2].set_xlabel("Time (s)"); axes[2].set_ylabel("Bank angle (deg)")
         for ax in axes[1:]:
             ax.set_xlim(0, clean.shape[1] - 1)
-    tag(np.concatenate(grid))
     grid[0][0].legend(loc="upper left")
-    fig.savefig(out / "fig_dataset.pdf"); plt.close(fig)
+    save_panels(fig, grid, out, "fig_dataset")
 
 
 def _load(variant, aux, seed, device):
@@ -240,9 +240,8 @@ def fig_tail_direction(out):
         axes[2].bar(x + (k - 1) * w, split[name], w - 0.02, color=STYLE[name][0], label=LABEL[name])
     axes[2].set_xticks(x, ["Along", "Cross", "Vertical"]); axes[2].set_ylabel("Mean |error| (km)")
     axes[2].grid(axis="x", visible=False)
-    tag(axes, [r"$\sigma = 50$ m", r"$\sigma = 200$ m", r"Error direction, $\sigma = 200$ m"])
     axes[2].set_ylim(0, 10); axes[2].legend(*axes[0].get_legend_handles_labels(), loc="upper right")
-    fig.savefig(out / "fig_tail_direction.pdf"); plt.close(fig)
+    save_panels(fig, axes, out, "fig_tail_direction")
     print("direction split sigma 200:", {k: np.round(v, 3) for k, v in split.items()})
 
 
@@ -255,9 +254,8 @@ def fig_cases(out, sigma=50):
     strata = np.asarray(data["strata"]); label = ex["label"].numpy() > 0
     ours, base = _load("ours2s", 1, 42, device), _load("itransformer_priors", 0, 42, device)
     cases = ["quasi_equilibrium__turning", "quasi_equilibrium__weaving", "skip_glide__weaving"]
-    titles = ["Quasi-equilibrium glide, turning", "Quasi-equilibrium glide, weaving", "Skip glide, weaving"]
     fig, axes = plt.subplots(2, 3, figsize=(WIDTH, 4.6), gridspec_kw={"height_ratios": [1.25, 1]})
-    for col, (s, title) in enumerate(zip(cases, titles)):
+    for col, s in enumerate(cases):
         idx = np.flatnonzero(label & (strata == s))
         po, pball = _predict(*ours, ex, idx, device), _predict(*base, ex, idx, device)
         tgt, pri = ex["target"][idx].numpy(), ex["prior"][idx].numpy()
@@ -286,9 +284,8 @@ def fig_cases(out, sigma=50):
         ade = {k: np.linalg.norm(v - tgt[w], axis=-1).mean() for k, v in tracks.items() if k != "Truth"}
         print(f"{s}: window {i}, ADE " + ", ".join(f"{k} {v:.2f}" for k, v in ade.items()))
     axes[0, 0].set_ylabel("Cross-track offset from prior (km)"); axes[1, 0].set_ylabel("Altitude (km)")
-    tag(axes, titles + [None] * 3)
     axes[0, 0].set_ylim(top=27); axes[0, 0].legend(*axes[1, 0].get_legend_handles_labels(), loc="upper left")
-    fig.savefig(out / "fig_cases.pdf"); plt.close(fig)
+    save_panels(fig, axes, out, "fig_cases")
 
 
 if __name__ == "__main__":
