@@ -301,7 +301,9 @@ def fig_cases(out, sigma=50):
         ade = {k: np.linalg.norm(v - tgt[w], axis=-1).mean() for k, v in tracks.items() if k != "Truth"}
         print(f"{s}: window {i}, ADE " + ", ".join(f"{k} {v:.2f}" for k, v in ade.items()))
     axes[0, 0].set_ylabel("Cross-track offset from prior (km)"); axes[1, 0].set_ylabel("Altitude (km)")
-    axes[0, 0].set_ylim(top=27); legend(axes[0, 0], *axes[1, 0].get_legend_handles_labels(), loc="upper left")
+    h, l = axes[1, 0].get_legend_handles_labels()  # h[0]: observed track, drawn only in the altitude panels
+    axes[0, 0].set_ylim(top=27); legend(axes[0, 0], h[1:], l[1:], loc="upper left")
+    legend(axes[1, 0], h[:1], l[:1], loc="lower left")
     save_panels(fig, axes, out, "fig_cases")
 
 
