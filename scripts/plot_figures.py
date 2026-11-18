@@ -20,12 +20,29 @@ sys.path[:0] = [str(Path(__file__).resolve().parent), str(Path(__file__).resolve
 import pipeline as T  # noqa: E402
 
 RES = T.OUT / "results"
-# methods differ by color only (solid lines); colors match Fig. 1 of the paper (orange BSR-Net, blue physics prior, black truth)
-STYLE = {"A_fit": ("#0070C0", "-"), "iTransformer+prior+series": ("#00B050", "-"),
-         "Ours-MS w/o bank rollout": ("#7030A0", "-"), "Ours-MS": ("#ED7D31", "-")}  # BSR-Net drawn last (on top)
-KEYS = {"Ours-MS": "ours2s", "iTransformer+prior+series": "itransformer_priors", "Ours-MS w/o bank rollout": "ours2s_nb", "A_fit": "afit"}
-LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "Ours-MS w/o bank rollout": "BSR-Net w/o rollout",
-         "iTransformer+prior+series": "iTransformer+prior+series", "Ours-MS": "BSR-Net"}  # paper name of ours2s
+# methods differ by color only (solid lines); colors match Fig. 1 (orange BSR-Net, blue physics prior, black truth)
+# three method colors with one meaning across the paper (Fig. 1): orange BSR-Net, blue physics prior, green strongest
+# baseline; truth black, observed track gray. Solid lines only; BSR-Net drawn last, on top, and heavier.
+STYLE = {"A_fit": ("#0070C0", "-"), "iTransformer+prior+series": ("#00B050", "-"), "Ours-MS": ("#ED7D31", "-")}
+KEYS = {"Ours-MS": "ours2s", "iTransformer+prior+series": "itransformer_priors", "A_fit": "afit"}
+LABEL = {"A_fit": r"$A_{\mathrm{fit}}$ (physics prior)", "iTransformer+prior+series": "iTransformer+prior+series",
+         "Ours-MS": "BSR-Net"}  # paper name of ours2s
+LW = {"Ours-MS": 2.2, "Truth": 1.6}  # every other line 1.3
+OBSERVED = "#A6A6A6"
+
+
+def lw(name):
+    return LW.get(name, 1.3)
+
+
+def legend(ax, *args, **kw):
+    """Legend with the BSR-Net entry in bold."""
+    leg = ax.legend(*args, **kw)
+    for txt in leg.get_texts():
+        txt.set_fontweight("bold" if txt.get_text() == LABEL["Ours-MS"] else "normal")
+    return leg
+
+
 WIDTH = 6.45  # drawn at the final text width (468 pt) and included at natural size, one PDF per panel (IEEE subfigures)
 plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman", "DejaVu Serif"], "mathtext.fontset": "stix",
                      "font.size": 8.5, "axes.linewidth": 0.7, "axes.grid": True, "grid.color": "#e4e4e0",
@@ -59,9 +76,9 @@ def fig_error_time(out):
         lo, hi = np.inf, -np.inf
         for name, (color, ls) in STYLE.items():
             e = z[f"{KEYS[name]}/sigma{sigma}/step"].mean(0)
-            ax.plot(t, e, color=color, ls=ls, label=LABEL[name])
+            ax.plot(t, e, color=color, ls=ls, lw=lw(name), label=LABEL[name])
             if name != "A_fit":
-                ins.plot(t[223:], e[223:], color=color, ls=ls)
+                ins.plot(t[223:], e[223:], color=color, ls=ls, lw=lw(name))
                 lo, hi = min(lo, e[223:].min()), max(hi, e[223:].max())
         ins.set_xlim(224, 256); ins.set_ylim(lo - 0.1 * (hi - lo), hi + 0.1 * (hi - lo)); ins.set_xticks([224, 256])
         ins.grid(False); ins.spines[["top", "right"]].set_visible(True)
@@ -69,7 +86,7 @@ def fig_error_time(out):
             c.set_visible(False)
         ax.set_xlabel("Prediction time (s)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     axes[0].set_ylabel("Position error (km)"); axes[0].set_ylim(bottom=0)
-    axes[0].legend(loc="upper left")
+    legend(axes[0], loc="upper left")
     save_panels(fig, axes, out, "fig_error_time")
 
 
@@ -85,7 +102,7 @@ def fig_noise(out):
         d = d[(d.group == "overall") & (d.horizon_s == 256)]
         for name, (color, ls) in STYLE.items():
             r = d[d.method == name].sort_values("sigma_m")
-            ax.plot(r.sigma_m, r.ade_mean, color=color, ls=ls, marker="o", ms=4, mec="white", mew=0.6, label=LABEL[name])
+            ax.plot(r.sigma_m, r.ade_mean, color=color, ls=ls, lw=lw(name), marker="o", ms=4, mec="white", mew=0.6, label=LABEL[name])
         at = lambda m: d[(d.method == m) & (d.sigma_m == 200)].ade_mean.item()
         gain.append(100 * (1 - at("Ours-MS") / at("iTransformer+prior+series")))
         ax.set_xlabel(r"Measurement noise $\sigma$ (m)"); ax.set_xticks([0, 50, 100, 200]); ax.set_ylim(0, 14)
@@ -98,7 +115,7 @@ def fig_noise(out):
         ax.text(k, g + 0.4, f"{g:.1f}", ha="center", va="bottom")
     ax.set_xticks(x, [p[1] for p in panels], rotation=35, ha="right", rotation_mode="anchor"); ax.set_ylim(0, 21); ax.grid(axis="x", visible=False)
     ax.set_ylabel("ADE reduction vs.\niTransformer+prior+series (%)")
-    axes[0, 0].legend(loc="upper left")
+    legend(axes[0, 0], loc="upper left")
     save_panels(fig, axes, out, "fig_noise_mismatch")
 
 
@@ -130,25 +147,26 @@ def fig_case(out, sigma=50):
     fig, axes = plt.subplots(1, 3, figsize=(WIDTH, 2.4))
     tf = np.arange(1, 257)
     for ax, f, ylabel in ((axes[0], cross, "Cross-track offset (km)"), (axes[1], lambda x: x[:, 2] - pri[:, 2], "Vertical offset (km)")):
-        ax.axhline(0, color=STYLE["A_fit"][0], label=LABEL["A_fit"])
-        ax.plot(tf, f(tgt), color="black", label="Truth"); ax.plot(tf, f(p), color=STYLE["Ours-MS"][0], label=LABEL["Ours-MS"])
+        ax.axhline(0, color=STYLE["A_fit"][0], lw=lw("A_fit"), label=LABEL["A_fit"])
+        ax.plot(tf, f(tgt), color="black", lw=lw("Truth"), label="Truth")
+        ax.plot(tf, f(p), color=STYLE["Ours-MS"][0], lw=lw("Ours-MS"), label=LABEL["Ours-MS"])
         ax.set_xlabel("Prediction time (s)"); ax.set_ylabel(ylabel); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     ax = axes[2]
     blocks = np.arange(T.BANK_BLOCKS + 1) * (256 // T.BANK_BLOCKS)
     deg = lambda x: np.rad2deg(np.append(x, x[-1]))
-    ax.step(blocks, deg(ex["bank_future"][i].numpy()), where="post", color="black", label="Truth")
+    ax.step(blocks, deg(ex["bank_future"][i].numpy()), where="post", color="black", lw=lw("Truth"), label="Truth")
     ax.step(blocks, deg(np.full(T.BANK_BLOCKS, ex["aero"][i, 2].item())), where="post", color=STYLE["A_fit"][0],
-            label=LABEL["A_fit"])
-    ax.step(blocks, deg(b), where="post", color=STYLE["Ours-MS"][0], label=LABEL["Ours-MS"])
+            lw=lw("A_fit"), label=LABEL["A_fit"])
+    ax.step(blocks, deg(b), where="post", color=STYLE["Ours-MS"][0], lw=lw("Ours-MS"), label=LABEL["Ours-MS"])
     ax.set_xlabel("Prediction time (s)"); ax.set_ylabel("Bank angle (deg)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
     axes[1].set_ylim(-9.5, 0.5)
-    axes[1].legend(*ax.get_legend_handles_labels(), loc="lower right")
+    legend(axes[1], *ax.get_legend_handles_labels(), loc="lower right")
     save_panels(fig, axes, out, "fig_case_bank")
     print(f"case window {i}: ADE A_fit {ea:.2f} km, Ours-MS {eo:.2f} km")
 
 
 STRATA = [f"{v}__{l}" for v in ("quasi_equilibrium", "skip_glide") for l in ("longitudinal", "turning", "weaving")]
-LATERAL = {"longitudinal": "#0070C0", "turning": "#ED7D31", "weaving": "#00B050"}  # one row per vertical regime
+LATERAL = {"longitudinal": "#000000", "turning": "#595959", "weaving": "#A6A6A6"}  # neutral: no method meaning
 VERTICAL = {"quasi_equilibrium": 0, "skip_glide": 1}  # row
 R_EARTH = 6.378e6
 
@@ -169,9 +187,9 @@ def fig_dataset(out):
         bearing = np.arctan2(np.sin(lon - lon[0]) * np.cos(lat), np.cos(lat[0]) * np.sin(lat) - np.sin(lat[0]) * np.cos(lat) * np.cos(lon - lon[0]))
         xt = np.arcsin(np.sin(dist) * np.sin(bearing - psi0))  # cross-range from the initial great circle (rad)
         at = np.arccos(np.clip(np.cos(dist) / np.cos(xt), -1, 1))
-        axes[0].plot(at * R_EARTH / 1000, xt * R_EARTH / 1000, color=c, ls=ls, label=l.capitalize())
-        axes[1].plot(t, (clean[i, :, 0] - R_EARTH) / 1000, color=c, ls=ls)
-        axes[2].plot(t, np.rad2deg(bank[i]), color=c, ls=ls)
+        axes[0].plot(at * R_EARTH / 1000, xt * R_EARTH / 1000, color=c, ls=ls, lw=1.5, label=l.capitalize())
+        axes[1].plot(t, (clean[i, :, 0] - R_EARTH) / 1000, color=c, ls=ls, lw=1.5)
+        axes[2].plot(t, np.rad2deg(bank[i]), color=c, ls=ls, lw=1.5)
     for axes in grid:
         axes[0].set_xlabel("Downrange (km)"); axes[0].set_ylabel("Cross-range (km)")
         axes[1].set_xlabel("Time (s)"); axes[1].set_ylabel("Altitude (km)")
@@ -226,7 +244,7 @@ def fig_tail_direction(out):
             a = z[f"{KEYS[name]}/sigma{sigma}/ade"].mean(0)
             traj = np.sort(np.bincount(rows, a) / np.bincount(rows))
             color, ls = STYLE[name]
-            ax.plot(traj, np.arange(1, len(traj) + 1) / len(traj), color=color, ls=ls, label=LABEL[name])
+            ax.plot(traj, np.arange(1, len(traj) + 1) / len(traj), color=color, ls=ls, lw=lw(name), label=LABEL[name])
         ax.set_xlabel("Per-trajectory ADE over 256 s (km)")
         ax.set_xlim(0, 20); ax.set_ylim(0, 1)
     axes[0].set_ylabel("Fraction of test trajectories")
@@ -240,7 +258,7 @@ def fig_tail_direction(out):
         axes[2].bar(x + (k - 1) * w, split[name], w - 0.02, color=STYLE[name][0], label=LABEL[name])
     axes[2].set_xticks(x, ["Along", "Cross", "Vertical"]); axes[2].set_ylabel("Mean |error| (km)")
     axes[2].grid(axis="x", visible=False)
-    axes[2].set_ylim(0, 10); axes[2].legend(*axes[0].get_legend_handles_labels(), loc="upper right")
+    axes[2].set_ylim(0, 10); legend(axes[2], *axes[0].get_legend_handles_labels(), loc="upper right")
     save_panels(fig, axes, out, "fig_tail_direction")
     print("direction split sigma 200:", {k: np.round(v, 3) for k, v in split.items()})
 
@@ -272,19 +290,19 @@ def fig_cases(out, sigma=50):
         normal = np.stack((-along[:, 1], along[:, 0]), 1)
         cross = lambda y: ((y[:, :2] - pri[w][:, :2]) * normal).sum(1)  # horizontal offset from the prior, left positive
         ax, axh = axes[0, col], axes[1, col]
-        axh.plot(np.arange(-255, 1), alt(hist), color="#00B0F0", label="Observed track")
+        axh.plot(np.arange(-255, 1), alt(hist), color=OBSERVED, lw=lw("Observed"), label="Observed track")
         tf = np.arange(1, 257)
         for name, y in tracks.items():
             color, ls = ("black", "-") if name == "Truth" else STYLE[name]
-            ax.plot(tf, cross(y), color=color, ls=ls)
-            axh.plot(tf, alt(y), color=color, ls=ls, label="Truth" if name == "Truth" else LABEL[name])
+            ax.plot(tf, cross(y), color=color, ls=ls, lw=lw(name))
+            axh.plot(tf, alt(y), color=color, ls=ls, lw=lw(name), label="Truth" if name == "Truth" else LABEL[name])
         ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
         ax.set_xlabel("Prediction time (s)")
         axh.set_xlabel("Time from newest measurement (s)"); axh.set_xlim(-255, 256)
         ade = {k: np.linalg.norm(v - tgt[w], axis=-1).mean() for k, v in tracks.items() if k != "Truth"}
         print(f"{s}: window {i}, ADE " + ", ".join(f"{k} {v:.2f}" for k, v in ade.items()))
     axes[0, 0].set_ylabel("Cross-track offset from prior (km)"); axes[1, 0].set_ylabel("Altitude (km)")
-    axes[0, 0].set_ylim(top=27); axes[0, 0].legend(*axes[1, 0].get_legend_handles_labels(), loc="upper left")
+    axes[0, 0].set_ylim(top=27); legend(axes[0, 0], *axes[1, 0].get_legend_handles_labels(), loc="upper left")
     save_panels(fig, axes, out, "fig_cases")
 
 
