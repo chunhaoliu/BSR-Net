@@ -19,7 +19,7 @@ On 360 independent test trajectories with 0–200 m position noise, BSR-Net redu
 | `scripts/analysis.py`, `scripts/plot_figures.py` | Significance tests, label-free schedule analysis, error split, AUROC, GFLOPs; paper figures |
 | `checkpoints/` | Trained BSR-Net weights (3 seeds), BSR-Net without bank supervision (λ = 0), BSR-Net without rollout |
 | `results/` | Result tables behind the paper (see below) |
-| `docs/CONFIRMATORY_HOLDOUT_PROTOCOL.md` | Test-set and density-mismatch protocol (the aerodynamic-mismatch sets use the same seeds, `--aero-scale`) |
+| `docs/CONFIRMATORY_HOLDOUT_PROTOCOL.md` | Test-set and density-mismatch protocol (the aerodynamic-mismatch sets use the same seeds, `--aero-scale`; development check sets `--seed 20261118`) |
 
 Variant names used by the code: `ours2s` = BSR-Net; `ours2s_nb` = w/o bank-schedule rollout; `ours2` = w/o identified-parameter sequence; `ours` = w/o both (residual on prior); `direct` = w/o physics prior. `--aux` is the bank-term weight λ; `--blocks` is the number K of schedule blocks; `--aero rel|abs` overrides the default aerodynamic input representation (relative for BSR-Net and its ablations, absolute for baselines), stored in the checkpoint as `rel_aero`. Method labels in the result tables: `Ours-MS` = BSR-Net, `Ours-MS w/o bank rollout`, `Ours-M` = w/o identified-parameter sequence, `Ours` = w/o both, `Direct` = w/o physics prior, `A_fit` = identified physics prior; `NoAux` is a residual-on-prior variant without the auxiliary term that is not reported in the paper.
 
@@ -41,9 +41,10 @@ python scripts/generate_confirmatory_holdout.py --density-mismatch 0.15
 python scripts/generate_confirmatory_holdout.py --density-mismatch 0.30
 python scripts/generate_confirmatory_holdout.py --aero-scale 1.1 0.9
 python scripts/generate_confirmatory_holdout.py --aero-scale 0.9 1.1
+for k in "" "--aero-scale 1.1 0.9" "--aero-scale 0.9 1.1"; do python scripts/generate_confirmatory_holdout.py --seed 20261118 --trajectories 180 $k; done   # development check sets (Section 5.5)
 
 # 2. Identification: physics prior (GPU) and sliding parameter series (CPU; slow for the training split)
-for s in train val holdout mismatch15 mismatch30 mismatchaero110_90 mismatchaero90_110; do
+for s in train val holdout mismatch15 mismatch30 mismatchaero110_90 mismatchaero90_110 devnom devaero110_90 devaero90_110; do
   python scripts/pipeline.py cache --split $s
   python scripts/pipeline.py analytic --split $s --iterations 5
 done
@@ -56,6 +57,7 @@ python scripts/pipeline.py train --variant ours2 --aux 1 --lr 1e-3 --seed 42
 python scripts/pipeline.py train --variant ours --aux 0.1 --lr 1e-3 --seed 42
 python scripts/pipeline.py train --variant direct --lr 1e-3 --seed 42
 python scripts/pipeline.py train --variant ours2s --aux 1 --lr 1e-3 --seed 42 --blocks 16 --tag _K16   # also K = 64
+python scripts/pipeline.py train --variant ours2s --aux 1 --lr 1e-3 --seed 42 --aero abs --tag _abs   # absolute-input control (Section 5.5)
 
 # 4. Baselines (learning rates as in Table 3; DLinear and AF-CILN with the 100-epoch budget)
 python scripts/pipeline.py train --variant itransformer_priors --lr 1e-3 --seed 42
@@ -69,6 +71,7 @@ python scripts/pipeline.py stress --split holdout      # Tables 4-7 -> outputs/r
 for s in mismatch15 mismatch30 mismatchaero110_90 mismatchaero90_110; do python scripts/pipeline.py stress --split $s; done   # Fig. 7
 python scripts/pipeline.py stress --split holdout --tag _K16 --blocks 16             # Table 8 (also _K64 --blocks 64)
 python scripts/pipeline.py stress --split holdout --variant itransformer_priors --tag _rel   # relative-input control (all five splits)
+for s in devnom devaero110_90 devaero90_110; do python scripts/pipeline.py stress --split $s; python scripts/pipeline.py stress --split $s --variant ours2s --tag _abs; done   # development check (Section 5.5)
 python scripts/pipeline.py errors                      # per-window errors for Wilcoxon tests and Fig. 3
 python scripts/pipeline.py latency --fit-iterations 5  # Table 9 (identification timed with 5 LM iterations)
 python scripts/analysis.py wilcoxon
@@ -91,6 +94,7 @@ Learning rates of the remaining baselines: `transformer`, `itransformer`, `af_ci
 | `results/mismatch15_summary.csv`, `results/mismatch30_summary.csv`, `results/mismatchaero110_90_summary.csv`, `results/mismatchaero90_110_summary.csv` | Fig. 7 (density and aerodynamic mismatch) |
 | `results/holdout_K16_summary.csv`, `results/holdout_K64_summary.csv` | Schedule resolution (Table 8) |
 | `results/*_rel_summary.csv` | iTransformer+prior+series with relative aerodynamic inputs (Section 5.5) |
+| `results/devaero_metrics.csv` | Development check of the aerodynamic input representation: relative- and absolute-input BSR-Net and iTransformer+prior+series on 180 separately generated trajectories, σ = 0 and 200 m (Section 5.5) |
 | `results/latency.csv` | Table 9 |
 | `results/tuning.csv` | Learning-rate selection (Table 3) |
 | `results/lam0_holdout.txt`, `results/holdout_extras.txt` | Label-free schedule (Section 5.4); percentiles, error split, AUROC, GFLOPs (Section 5.3, Table 9) |

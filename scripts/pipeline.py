@@ -46,7 +46,8 @@ SIGMAS = (0, 50, 100, 200)
 HORIZONS = (32, 64, 128, 256)
 FIT_STEPS = {0: 24, 50: 48, 100: 64, 200: 96}
 NOISE_SEED = {"train": 20000, "val": 120000, "holdout": 220000, "mismatch15": 220000, "mismatch30": 220000,
-              "mismatchaero90_110": 220000, "mismatchaero110_90": 220000}  # stress sets: holdout noise
+              "mismatchaero90_110": 220000, "mismatchaero110_90": 220000,  # stress sets: holdout noise
+              "devnom": 320000, "devaero110_90": 320000, "devaero90_110": 320000}  # development check sets (Section 5.5)
 TRAIN_STRIDE = 5
 SEEDS = (42, 123, 456)
 AUX_WEIGHTS = (0.1, 0.3)  # weight 0 is the noaux variant
@@ -95,7 +96,7 @@ def norm_series(model, e, stats):
 
 
 def load_split(split: str) -> dict[str, np.ndarray]:
-    if split == "holdout" or split.startswith("mismatch"):  # mismatch<100A>: density-bias stress holdout
+    if split == "holdout" or split.startswith(("mismatch", "dev")):  # mismatch<100A>: density-bias stress holdout
         with np.load(DATA / ("hgv_confirmatory_holdout" + ("" if split == "holdout" else "_" + split) + ".npz")) as d:
             ids = d["trajectory_ids_confirmatory"]
             return {"clean": d["clean_trajectories"], "rows": ids - ids.min(), "starts": d["window_starts_confirmatory"],

@@ -28,6 +28,12 @@ The paper uses `A = 0.15` and `A = 0.30` (`hgv_confirmatory_holdout_mismatch15.n
 `K_L` and `K_D` (the vehicle's own guidance uses the scaled lift), while all predictors keep the nominal training data.
 The paper uses `(1.1, 0.9)` and `(0.9, 1.1)` (`hgv_confirmatory_holdout_mismatchaero110_90.npz`, `..._mismatchaero90_110.npz`).
 
+## Development check sets
+
+`--seed 20261118 --trajectories 180` generates development trajectories that share no seed with the test set, nominal
+(`hgv_confirmatory_holdout_devnom.npz`) and with `--aero-scale` (`..._devaero110_90.npz`, `..._devaero90_110.npz`). They check
+design choices, such as the aerodynamic input representation, away from the test set (measurement-noise seed `320000`).
+
 ## Evaluation contract
 
 - Models are trained and selected on the development set only; no model, checkpoint, normalization statistic, or

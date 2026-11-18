@@ -99,6 +99,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                         help="amplitude A of the stress-test density bias; writes hgv_confirmatory_holdout_mismatch<100A>.npz")
     parser.add_argument("--aero-scale", type=float, nargs=2, default=None, metavar=("K_L", "K_D"),
                         help="truth C_L, C_D scale factors; writes hgv_confirmatory_holdout_mismatchaero<100K_L>_<100K_D>.npz")
+    parser.add_argument("--seed", type=int, default=GENERATION_SEED,
+                        help="generation seed; any other seed writes a development check set hgv_confirmatory_holdout_dev<tag>.npz")
+    parser.add_argument("--trajectories", type=int, default=TRAJECTORY_COUNT, help="number of trajectories (multiple of 6)")
     return parser.parse_args(argv)
 
 
@@ -131,12 +134,18 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     mismatch, aero = args.density_mismatch, args.aero_scale
     aero_tag = f"aero{round(100 * aero[0])}_{round(100 * aero[1])}" if aero else ""
+    global GENERATION_SEED, TRAJECTORY_COUNT
+    dev = args.seed != GENERATION_SEED  # development check set: never the test trajectories
+    GENERATION_SEED, TRAJECTORY_COUNT = args.seed, args.trajectories
+    if dev and args.output == OUTPUT:
+        tag = aero_tag or (f"mismatch{round(100 * mismatch)}" if mismatch else "nom")
+        args.output = OUTPUT.with_name(f"hgv_confirmatory_holdout_dev{tag}.npz")
     if mismatch and args.output == OUTPUT:
         args.output = OUTPUT.with_name(f"hgv_confirmatory_holdout_mismatch{round(100 * mismatch)}.npz")
     if aero and args.output == OUTPUT:
         args.output = OUTPUT.with_name(f"hgv_confirmatory_holdout_mismatch{aero_tag}.npz")
     protocol = PROTOCOL + (f"_density_mismatch{round(100 * mismatch)}" if mismatch else "") + (f"_{aero_tag}" if aero else "")
-    role = "model_mismatch_stress_test" if mismatch or aero else "untouched_confirmatory_holdout"
+    role = "development_check" if dev else "model_mismatch_stress_test" if mismatch or aero else "untouched_confirmatory_holdout"
     output = args.output.expanduser().resolve()
     manifest_path = output.with_suffix(".manifest.json")
     if output.exists() or manifest_path.exists():
