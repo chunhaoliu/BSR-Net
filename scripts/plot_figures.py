@@ -38,6 +38,7 @@ def lw(name):
 def legend(ax, *args, **kw):
     """Legend with the BSR-Net entry in bold."""
     leg = ax.legend(*args, **kw)
+    leg.get_frame().set_linewidth(0.6)
     for txt in leg.get_texts():
         txt.set_fontweight("bold" if txt.get_text() == LABEL["Ours-MS"] else "normal")
     return leg
@@ -45,9 +46,10 @@ def legend(ax, *args, **kw):
 
 WIDTH = 6.45  # drawn at the final text width (468 pt) and included at natural size, one PDF per panel (IEEE subfigures)
 plt.rcParams.update({"font.family": "serif", "font.serif": ["Times New Roman", "DejaVu Serif"], "mathtext.fontset": "stix",
-                     "font.size": 8.5, "axes.linewidth": 0.7, "axes.grid": True, "grid.color": "#e4e4e0",
-                     "grid.linewidth": 0.5, "axes.spines.top": False, "axes.axisbelow": True, "axes.spines.right": False,
-                     "lines.linewidth": 1.8, "legend.frameon": True, "legend.facecolor": "white", "legend.edgecolor": "none",
+                     "font.size": 8.5, "axes.linewidth": 0.7, "axes.grid": False,  # journal style: white, boxed axes, no grid
+                     "axes.spines.top": True, "axes.spines.right": True, "xtick.direction": "in", "ytick.direction": "in",
+                     "xtick.top": True, "ytick.right": True,
+                     "lines.linewidth": 1.8, "legend.frameon": True, "legend.facecolor": "white", "legend.edgecolor": "black", "legend.fancybox": False,
                      "legend.framealpha": 1.0, "legend.borderpad": 0.3, "legend.borderaxespad": 0.3, "legend.labelspacing": 0.3,
                      "legend.handlelength": 1.6, "xtick.major.width": 0.7, "ytick.major.width": 0.7, "figure.constrained_layout.use": True})
 
@@ -81,7 +83,6 @@ def fig_error_time(out):
                 ins.plot(t[223:], e[223:], color=color, ls=ls, lw=lw(name))
                 lo, hi = min(lo, e[223:].min()), max(hi, e[223:].max())
         ins.set_xlim(224, 256); ins.set_ylim(lo - 0.1 * (hi - lo), hi + 0.1 * (hi - lo)); ins.set_xticks([224, 256])
-        ins.grid(False); ins.spines[["top", "right"]].set_visible(True)
         for c in ax.indicate_inset_zoom(ins, edgecolor="black", alpha=1.0, lw=0.6).connectors:
             c.set_visible(False)
         ax.set_xlabel("Prediction time (s)"); ax.set_xlim(0, 256); ax.set_xticks([0, 64, 128, 192, 256])
@@ -113,7 +114,7 @@ def fig_noise(out):
     ax.bar(x, gain, 0.6, color=STYLE["Ours-MS"][0])
     for k, g in enumerate(gain):
         ax.text(k, g + 0.4, f"{g:.1f}", ha="center", va="bottom")
-    ax.set_xticks(x, [p[1] for p in panels], rotation=35, ha="right", rotation_mode="anchor"); ax.set_ylim(0, 21); ax.grid(axis="x", visible=False)
+    ax.set_xticks(x, [p[1] for p in panels], rotation=35, ha="right", rotation_mode="anchor"); ax.set_ylim(0, 21); ax.tick_params(axis="x", bottom=False, top=False)
     ax.set_ylabel("ADE reduction vs.\niTransformer+prior+series (%)")
     legend(axes[0, 0], loc="upper left")
     save_panels(fig, axes, out, "fig_noise_mismatch")
@@ -166,7 +167,7 @@ def fig_case(out, sigma=50):
 
 
 STRATA = [f"{v}__{l}" for v in ("quasi_equilibrium", "skip_glide") for l in ("longitudinal", "turning", "weaving")]
-LATERAL = {"longitudinal": "#000000", "turning": "#595959", "weaving": "#A6A6A6"}  # neutral: no method meaning
+LATERAL = {"longitudinal": "#7030A0", "turning": "#C00000", "weaving": "#00827F"}  # data strata: colors no method uses
 VERTICAL = {"quasi_equilibrium": 0, "skip_glide": 1}  # row
 R_EARTH = 6.378e6
 
@@ -196,7 +197,7 @@ def fig_dataset(out):
         axes[2].set_xlabel("Time (s)"); axes[2].set_ylabel("Bank angle (deg)")
         for ax in axes[1:]:
             ax.set_xlim(0, clean.shape[1] - 1)
-    grid[0][0].legend(loc="upper left")
+    legend(grid[0][0], loc="upper left")
     save_panels(fig, grid, out, "fig_dataset")
 
 
@@ -257,7 +258,7 @@ def fig_tail_direction(out):
     for k, name in enumerate(names):
         axes[2].bar(x + (k - 1) * w, split[name], w - 0.02, color=STYLE[name][0], label=LABEL[name])
     axes[2].set_xticks(x, ["Along", "Cross", "Vertical"]); axes[2].set_ylabel("Mean |error| (km)")
-    axes[2].grid(axis="x", visible=False)
+    axes[2].tick_params(axis="x", bottom=False, top=False)
     axes[2].set_ylim(0, 10); legend(axes[2], *axes[0].get_legend_handles_labels(), loc="upper right")
     save_panels(fig, axes, out, "fig_tail_direction")
     print("direction split sigma 200:", {k: np.round(v, 3) for k, v in split.items()})
