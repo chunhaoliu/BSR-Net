@@ -45,7 +45,8 @@ OUT = Path(os.getenv("HGV_OUT", PROJECT_ROOT / "outputs"))
 SIGMAS = (0, 50, 100, 200)
 HORIZONS = (32, 64, 128, 256)
 FIT_STEPS = {0: 24, 50: 48, 100: 64, 200: 96}
-NOISE_SEED = {"train": 20000, "val": 120000, "holdout": 220000, "mismatch15": 220000, "mismatch30": 220000}  # stress sets: holdout noise
+NOISE_SEED = {"train": 20000, "val": 120000, "holdout": 220000, "mismatch15": 220000, "mismatch30": 220000,
+              "mismatchaero90_110": 220000, "mismatchaero110_90": 220000}  # stress sets: holdout noise
 TRAIN_STRIDE = 5
 SEEDS = (42, 123, 456)
 AUX_WEIGHTS = (0.1, 0.3)  # weight 0 is the noaux variant
@@ -65,7 +66,7 @@ def build_model(variant: str, device: torch.device, input_dim: int = 6, dropout:
         return AFCILN().to(device)
     if variant in ("ours2", "ours2s", "ours2s_nb"):  # ours2s also reads the identified parameter series;
         # ours2s_nb = ablation without the bank rollout (offset fixed at 0, so the shift is 0)
-        return ManeuverAST(series_dim=0 if variant == "ours2" else 6, bank_scale=0.0 if variant == "ours2s_nb" else 0.6,
+        return ManeuverAST(blocks=BANK_BLOCKS, series_dim=0 if variant == "ours2" else 6, bank_scale=0.0 if variant == "ours2s_nb" else 0.6,
                            dropout=dropout).to(device)
     if variant in ("pit", "pit_prior"):
         return PIT(prior_input=variant == "pit_prior").to(device)
@@ -189,6 +190,7 @@ def series_tokens(split, sigma, n):
 
 
 BANK_BLOCKS = 32  # ours2: one bank value per 8 s of the 256 s horizon
+REL_VARIANTS = ("ours", "ours2", "ours2s", "ours2s_nb", "noaux", "direct")  # BSR-Net and its ablations: relative aero inputs
 SHIFT_BATCH = 512  # ours2: fixed batch of the CUDA-graphed rollout
 _SHIFT = {}
 _INFER = {}
@@ -243,6 +245,15 @@ def shift_infer(device, args):
         buf.copy_(a)
     graph.replay()
     return out.clone()
+
+
+def rel_aero_view(ex):
+    """Network inputs that carry C_L, C_D only as log change vs the newest fit (clipped to +-2); absolute values stay in
+    ex["aero"] for the rollout. Keeps the network inside its training range under aerodynamic model mismatch."""
+    out = dict(ex); out["feats"] = ex["feats"].clone(); out["feats"][:, :2] = 0.0
+    if "series" in ex:
+        s = ex["series"].clone(); s[..., :2] = torch.log(s[..., :2] / s[:, -1:, :2]).clamp(-2.0, 2.0); out["series"] = s
+    return out
 
 
 def maneuver_forward(model, e, stats, hist, prior_n, feats):
@@ -316,6 +327,7 @@ def predict(model, ex, stats, idx, device, batch=2048):
         for b in range(0, len(idx), batch):
             j = idx[b:b + batch]
             e = {k: v[j].to(device) for k, v in ex.items()}
+            e = rel_aero_view(e) if getattr(model, "rel_aero", False) else e
             hist, prior_n, feats = normalize(e, stats)
             if getattr(model, "maneuver", False):
                 pred, logit, _ = maneuver_forward(model, e, stats, hist, prior_n, feats)
@@ -345,6 +357,9 @@ def train(args):
     device = torch.device("cuda")
     torch.manual_seed(args.seed); rng = np.random.default_rng(args.seed)
     _, tr = load_examples("train"); _, va = load_examples("val")
+    rel = args.aero == "rel" if args.aero else args.variant in REL_VARIANTS
+    if rel:
+        tr, va = ({s: rel_aero_view(d[s]) for s in SIGMAS} for d in (tr, va))
     stats = {k: v.to(device) for k, v in fit_stats(tr).items()}
     tr = {k: torch.stack([tr[s][k] for s in SIGMAS]).to(device) for k in tr[0]}  # [4, N, ...] on GPU
     n = tr["label"].shape[1] if args.limit is None else args.limit
@@ -412,7 +427,7 @@ def train(args):
             if not args.limit:
                 (OUT / "checkpoints").mkdir(parents=True, exist_ok=True)
                 torch.save({"model": model.state_dict(), "stats": {k: v.cpu() for k, v in stats.items()}, "variant": args.variant,
-                            "aux": aux, "seed": args.seed, "lr": args.lr, "epoch": epoch, "val_ade256_km": best}, OUT / "checkpoints" / f"{name}.pt")
+                            "aux": aux, "seed": args.seed, "lr": args.lr, "blocks": BANK_BLOCKS, "rel_aero": rel, "epoch": epoch, "val_ade256_km": best}, OUT / "checkpoints" / f"{name}.pt")
         else:
             stale += 1
             if stale >= args.patience:
@@ -467,7 +482,7 @@ def evaluate(args):
             if not ckpt_path.exists():
                 raise FileNotFoundError(f"missing baseline checkpoint: {ckpt_path}")
             ckpt = torch.load(ckpt_path, map_location=device)
-            model = build_model(variant, device); model.load_state_dict(ckpt["model"]); model.eval()
+            model = build_model(variant, device); model.load_state_dict(ckpt["model"]); model.eval(); model.rel_aero = ckpt.get("rel_aero", False)
             stats = {k: v.to(device) for k, v in ckpt["stats"].items()}
             if seed == 42:
                 seed42_val = ckpt.get("val_ade256_km", "")
@@ -626,8 +641,8 @@ def series_path(split, sigma, iterations=FitConfig.iterations):
     return OUT / "cache" / f"{split}_sigma{sigma}_series{'' if iterations == FitConfig.iterations else f'_it{iterations}'}.npz"
 
 
-def build_series(split, sigma, limit=None, batch_size=256, iterations=FitConfig.iterations):
-    """Sliding A_fit parameter series for every window (CPU, resumable)."""
+def build_series(split, sigma, limit=None, batch_size=256, iterations=FitConfig.iterations, device="cpu"):
+    """Sliding A_fit parameter series for every window (float64, resumable; CPU by default)."""
     data, path = load_split(split), series_path(split, sigma, iterations)
     n = len(data["starts"]) if limit is None else limit
     done = {"series": [], "terminal_state": []}
@@ -635,11 +650,11 @@ def build_series(split, sigma, limit=None, batch_size=256, iterations=FitConfig.
         with np.load(path) as c:
             done = {k: [c[k]] for k in done}
     start = sum(len(v) for v in done["series"])
-    meas, physics, cfg = measurements(data, split, sigma), make_physics("cpu").double(), FitConfig(fit_steps=FIT_STEPS[sigma], iterations=iterations)
+    meas, physics, cfg = measurements(data, split, sigma), make_physics(device).double(), FitConfig(fit_steps=FIT_STEPS[sigma], iterations=iterations)
     for begin in range(start, n, batch_size):
         r, s = data["rows"][begin:min(begin + batch_size, n), None], data["starts"][begin:min(begin + batch_size, n), None]
-        series, fit = parameter_series(physics, torch.from_numpy(meas[r, s + np.arange(256)]), cfg, VARMA_EVERY)
-        done["series"].append(series.numpy()); done["terminal_state"].append(fit["terminal_state"].numpy())
+        series, fit = parameter_series(physics, torch.from_numpy(meas[r, s + np.arange(256)]).to(device), cfg, VARMA_EVERY)
+        done["series"].append(series.cpu().numpy()); done["terminal_state"].append(fit["terminal_state"].cpu().numpy())
         if (begin // batch_size) % 8 == 7 or begin + batch_size >= n:
             np.savez(path, **{k: np.concatenate(v) for k, v in done.items()})
             print(split, sigma, min(begin + batch_size, n), "/", n, time.strftime("%H:%M"), flush=True)
@@ -675,7 +690,7 @@ def analytic(args):
     torch.set_num_threads(args.threads)
     if not args.select and not args.evaluate:
         for sigma in args.sigmas:
-            build_series(args.split, sigma, args.limit, iterations=args.iterations)
+            build_series(args.split, sigma, args.limit, batch_size=args.batch_size, iterations=args.iterations, device=args.device)
         return
     config_path = OUT / "config.json"
     config = json.loads(config_path.read_text()) if config_path.exists() else {}
@@ -723,7 +738,7 @@ def errors(args):
             ade, step = [], []
             for seed in SEEDS:
                 ckpt = torch.load(OUT / "checkpoints" / f"{run_name(variant, aux, seed)}{EPOCH100.get(variant, '')}.pt", map_location=device)
-                model = build_model(variant, device); model.load_state_dict(ckpt["model"])
+                model = build_model(variant, device); model.load_state_dict(ckpt["model"]); model.rel_aero = ckpt.get("rel_aero", False)
                 err, _ = predict(model, ex[sigma], {k: v.to(device) for k, v in ckpt["stats"].items()}, idx, device)
                 ade.append(err.mean(1)); step.append(err.mean(0))
             out[f"{variant}/sigma{sigma}/ade"], out[f"{variant}/sigma{sigma}/step"] = np.stack(ade), np.stack(step)
@@ -740,19 +755,20 @@ def stress(args):
     for sigma in SIGMAS:
         err = (ex[sigma]["prior"] - ex[sigma]["target"]).norm(dim=-1).numpy()
         rows += summarize(err, np.zeros(len(err)), data, ex[sigma], method="A_fit", seed=0, sigma_m=sigma)[0]
-    for label, variant, aux in METHOD_SPECS:
+    specs = [(f"{BASELINE_LABELS.get(args.variant, 'Ours-MS')}{args.tag}", args.variant, 1 if args.variant == "ours2s" else 0)] if args.tag else METHOD_SPECS  # --tag: one variant, e.g. _K16
+    for label, variant, aux in specs:
         for seed in SEEDS:
-            path = OUT / "checkpoints" / f"{run_name(variant, aux, seed)}{EPOCH100.get(variant, '')}.pt"
+            path = OUT / "checkpoints" / f"{run_name(variant, aux, seed)}{args.tag or EPOCH100.get(variant, '')}.pt"
             if not path.exists():
                 print("missing", path.name); continue
             ckpt = torch.load(path, map_location=device)
-            model = build_model(variant, device); model.load_state_dict(ckpt["model"])
+            model = build_model(variant, device); model.load_state_dict(ckpt["model"]); model.rel_aero = ckpt.get("rel_aero", False)
             stats = {k: v.to(device) for k, v in ckpt["stats"].items()}
             for sigma in SIGMAS:
                 err, logit = predict(model, ex[sigma], stats, idx, device)
                 rows += summarize(err, logit, data, ex[sigma], method=label, seed=seed, sigma_m=sigma)[0]
-    write_csv(OUT / "results" / f"{args.split}_metrics.csv", rows)
-    write_csv(OUT / "results" / f"{args.split}_summary.csv", seed_summary(rows))
+    write_csv(OUT / "results" / f"{args.split}{args.tag}_metrics.csv", rows)
+    write_csv(OUT / "results" / f"{args.split}{args.tag}_summary.csv", seed_summary(rows))
 
 
 def main() -> int:
@@ -764,6 +780,8 @@ def main() -> int:
     t.add_argument("--epochs", type=int, default=50); t.add_argument("--patience", type=int, default=7)
     t.add_argument("--tag", default="", help="name suffix, e.g. _lr0.001 for lr tuning runs"); t.add_argument("--batch-size", type=int, default=512); t.add_argument("--lr", type=float, default=5e-4)
     t.add_argument("--limit", type=int, default=None, help="train on the first N windows only (overfit check; no checkpoint)")
+    t.add_argument("--blocks", type=int, default=32, help="ours2*: bank-schedule blocks K (256/K s each)")
+    t.add_argument("--aero", choices=("rel", "abs"), default=None, help="aero network inputs; default rel for BSR-Net and its ablations, abs for baselines")
     t.add_argument("--dropout", type=float, default=0.1, help="ours2/ours2s only"); t.add_argument("--weight-decay", type=float, default=1e-4)
     e = sub.add_parser("evaluate"); e.add_argument("--only-missing", action="store_true"); e.add_argument("--methods", nargs="*", choices=BASELINE_VARIANTS)
     l = sub.add_parser("latency"); l.add_argument("--runs", type=int, default=50)
@@ -772,10 +790,16 @@ def main() -> int:
     a.add_argument("--limit", type=int, default=None); a.add_argument("--threads", type=int, default=6)
     a.add_argument("--select", action="store_true"); a.add_argument("--evaluate", action="store_true")
     a.add_argument("--iterations", type=int, default=FitConfig.iterations, help="LM iterations of the sliding fits (series cache)")
+    a.add_argument("--device", default="cpu", help="device of the sliding fits (series cache)")
+    a.add_argument("--batch-size", type=int, default=256, help="windows per sliding-fit batch (series cache)")
     x = sub.add_parser("errors"); x.add_argument("--methods", nargs="+", default=["ours2s", "ours2s_nb", "ours2", "ours", "noaux",
                                                                                "itransformer_priors", "itransformer_priorf", "pit_prior"])
     r = sub.add_parser("stress"); r.add_argument("--split", required=True, help="holdout (final table), mismatch15 or mismatch30")
+    r.add_argument("--tag", default="", help="evaluate only --variant checkpoints with this suffix"); r.add_argument("--blocks", type=int, default=32)
+    r.add_argument("--variant", default="ours2s", choices=("ours2s", *BASELINE_VARIANTS), help="with --tag, e.g. itransformer_priors --tag _rel")
     args = ap.parse_args()
+    global BANK_BLOCKS
+    BANK_BLOCKS = getattr(args, "blocks", BANK_BLOCKS)
     if args.cmd == "cache":
         for sigma in args.sigmas:
             build_cache(args.split, sigma, torch.device("cuda"))

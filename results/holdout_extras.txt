@@ -1,13 +1,13 @@
-Holdout extras, 2026-11-17 (BSR-Net = ours2s_aux1, 3 seeds; +prior+series = itransformer_priors; from checkpoints, no retraining)
-Per-trajectory ADE256 (seed mean, from holdout_errors.npz), median / P90 / P95 / max km:
-sigma 0:   A_fit 3.67/9.65/12.27/18.06  PIT+prior 3.01/7.69/9.18/12.51  +prior+series 2.30/5.42/6.30/9.84  BSR-Net 2.39/5.31/6.36/11.72
-sigma 50:  A_fit 4.98/11.33/14.11/21.03 PIT+prior 4.25/8.56/9.87/13.64 +prior+series 3.51/6.42/7.24/11.71 BSR-Net 3.18/5.97/7.00/12.28
-sigma 200: A_fit 6.19/14.94/18.10/26.81 PIT+prior 5.01/10.43/12.40/17.19 +prior+series 4.35/7.77/8.70/11.94 BSR-Net 3.90/7.41/8.38/12.64
+Holdout extras, 2026-11-18, rel-aero BSR-Net (ours2s_aux1, 3 seeds; +prior+series = itransformer_priors; from checkpoints, no retraining)
+Per-trajectory ADE256 (seed mean, from holdout_errors.npz), median / P90 / P95 / P99 / max km:
+sigma 0: A_fit 3.67/9.65/12.27/15.21/18.06  PIT+prior 2.99/7.75/9.16/11.18/12.60  +prior+series 2.30/5.42/6.30/8.33/9.84  BSR-Net 2.14/5.19/6.01/8.20/9.20
+sigma 50: A_fit 4.98/11.33/14.11/17.45/21.03  PIT+prior 4.24/8.66/9.85/12.26/13.54  +prior+series 3.51/6.42/7.24/9.53/11.71  BSR-Net 3.08/6.13/7.30/8.89/10.17
+sigma 100: A_fit 5.50/12.70/15.36/19.27/22.96  PIT+prior 4.66/9.31/10.80/12.69/14.59  +prior+series 3.85/7.01/7.47/9.50/11.12  BSR-Net 3.47/6.63/7.70/9.12/10.75
+sigma 200: A_fit 6.19/14.94/18.10/22.72/26.81  PIT+prior 5.02/10.50/12.45/14.86/17.15  +prior+series 4.35/7.77/8.70/10.44/11.94  BSR-Net 3.88/7.44/8.57/10.27/11.99
 Mean |error| km along-track / cross-track / vertical (axes from the true trajectory, vertical = local radial):
-sigma 0:   A_fit 0.923/3.719/0.875  +prior+series 0.554/2.263/0.340  BSR-Net 0.334/2.337/0.322
-sigma 50:  A_fit 1.644/4.997/1.051  +prior+series 0.977/2.957/0.477  BSR-Net 0.530/2.850/0.439
-sigma 200: A_fit 1.863/6.329/1.185  +prior+series 1.192/3.639/0.554  BSR-Net 0.657/3.472/0.508
+sigma 0:   A_fit 0.923/3.719/0.875  +prior+series 0.554/2.263/0.340  BSR-Net 0.350/2.287/0.314
+sigma 50:  A_fit 1.644/4.997/1.051  +prior+series 0.977/2.957/0.477  BSR-Net 0.601/2.815/0.431
+sigma 200: A_fit 1.863/6.329/1.185  +prior+series 1.192/3.639/0.554  BSR-Net 0.748/3.424/0.491
 Bank-change AUROC of the BSR-Net offset score (max |delta sigma|), seeds 42/123/456:
-sigma 0 0.953 (0.947 0.958 0.953); sigma 50 0.927 (0.923 0.932 0.927); sigma 200 0.902 (0.898 0.909 0.899)
-GFLOPs per window (torch FlopCounterMode, matmul/conv, seed 42): BSR-Net 0.735 (encoder+decoders; rollout elementwise not counted),
-+prior+series 0.086, PIT 2.459, AF-CILN 0.002
+sigma 0 0.955 (0.956 0.957 0.953); sigma 50 0.933 (0.934 0.933 0.933); sigma 200 0.907 (0.903 0.909 0.908)
+GFLOPs per window (torch FlopCounterMode, matmul/conv, seed 42; architecture unchanged by the input representation): BSR-Net 0.735 (encoder+decoders; rollout elementwise not counted), +prior+series 0.086, PIT 2.459, AF-CILN 0.002

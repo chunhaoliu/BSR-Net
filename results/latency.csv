@@ -1,77 +1,77 @@
 component,mode,dtype,batch,fit_sigma_m,fit_steps,median_ms_per_window,parameters
-Ours-MS,network,bf16,1,,,31.389549985760823,1319302
-Ours-MS,network,bf16,1024,,,0.08602670897062126,1319302
-Ours-MS w/o bank rollout,network,bf16,1,,,28.490099997725338,1319302
-Ours-MS w/o bank rollout,network,bf16,1024,,,0.08600053709528765,1319302
-Ours,network,fp32,1,,,3.5269000218249857,913925
-Ours,network,bf16,1,,,4.7600500111002475,913925
-Ours,network,fp32,1024,,,0.032781103499246456,913925
-Ours,network,bf16,1024,,,0.02132294920897948,913925
-Direct,network,fp32,1,,,2.1860499982722104,913413
-Direct,network,bf16,1,,,6.534849992021918,913413
-Direct,network,fp32,1024,,,0.0323172363039248,913413
-Direct,network,bf16,1024,,,0.021926953138518,913413
-Transformer,network,fp32,1,,,1.9960500067099929,2641667
-Transformer,network,bf16,1,,,2.8843999898526818,2641667
-Transformer,network,fp32,1024,,,0.10748325192366792,2641667
-Transformer,network,bf16,1024,,,0.08827832033375671,2641667
-DLinear,network,fp32,1,,,0.24729999131523073,131584
-DLinear,network,bf16,1,,,0.3007500199601054,131584
-DLinear,network,fp32,1024,,,0.0002510742262984422,131584
-DLinear,network,bf16,1024,,,0.0003071289143008471,131584
-PatchTST,network,fp32,1,,,1.3142999960109591,3681536
-PatchTST,network,bf16,1,,,1.8204000080004334,3681536
-PatchTST,network,fp32,1024,,,0.02755205076709899,3681536
-PatchTST,network,bf16,1024,,,0.017508789056819296,3681536
-iTransformer,network,fp32,1,,,2.2784000320825726,1711616
-iTransformer,network,bf16,1,,,3.4612499875947833,1711616
-iTransformer,network,fp32,1024,,,0.0014634277363256842,1711616
-iTransformer,network,bf16,1024,,,0.0020801269613457407,1711616
-AF-CILN,network,fp32,1,,,7.044600002700463,112560
-AF-CILN,network,bf16,1,,,17.060000012861565,112560
-AF-CILN,network,fp32,1024,,,0.006823291045066071,112560
-AF-CILN,network,bf16,1024,,,0.015716455067149582,112560
-PIT,network,fp32,1,,,8.805049990769476,5868037
-PIT,network,bf16,1,,,9.198450017720461,5868037
-PIT,network,fp32,1024,,,0.1873528320288642,5868037
-PIT,network,bf16,1024,,,0.1386554199029888,5868037
-iTransformer+prior,network,fp32,1,,,1.1811499716714025,1711617
-iTransformer+prior,network,bf16,1,,,1.6729499911889434,1711617
-iTransformer+prior,network,fp32,1024,,,0.0013860839658264013,1711617
-iTransformer+prior,network,bf16,1024,,,0.0017198730404288654,1711617
-iTransformer+prior+feats,network,fp32,1,,,1.2266999983694404,1711617
-iTransformer+prior+feats,network,bf16,1,,,1.6271499916911125,1711617
-iTransformer+prior+feats,network,fp32,1024,,,0.0025033691315456963,1711617
-iTransformer+prior+feats,network,bf16,1024,,,0.0017581542977040954,1711617
-iTransformer+prior+series,network,fp32,1,,,1.3050500128883868,1711617
-iTransformer+prior+series,network,bf16,1,,,1.6958499909378588,1711617
-iTransformer+prior+series,network,fp32,1024,,,0.003758007778742467,1711617
-iTransformer+prior+series,network,bf16,1024,,,0.002128271489709732,1711617
-PIT+prior,network,fp32,1,,,7.644199999049306,5868038
-PIT+prior,network,bf16,1,,,9.34439999400638,5868038
-PIT+prior,network,fp32,1024,,,0.18816342770833216,5868038
-PIT+prior,network,bf16,1024,,,0.1397693847593473,5868038
-A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1,50,48,5192.093849997036,0
-A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1024,50,48,4.711322949219721,0
-A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,1,50,48,899.4913500209805,0
-VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,1,50,48,11602.470199984964,0
-A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,256,50,48,5.515355468787675,0
-VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,256,50,48,74.35834609395897,0
-A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1,200,96,11064.753549988382,0
-A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1024,200,96,10.262840234361192,0
-A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,1,200,96,1586.0307000111789,0
-VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,1,200,96,16912.124299968127,0
-A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,256,200,96,10.747269531293568,0
-VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,256,200,96,116.48254374995304,0
-Ours-MS,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,50,48,930.8809000067413,1319302
-Ours-MS,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,50,48,4.797349658190342,1319302
-Ours-MS,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,200,96,1617.4202499969397,1319302
-Ours-MS,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,200,96,10.348866943331814,1319302
-Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",fp32,1,50,48,903.0182500428054,913925
-Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,50,48,904.2514000320807,913925
-Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",fp32,1024,50,48,4.744104052718967,913925
-Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,50,48,4.7326458984287,913925
-Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",fp32,1,200,96,1589.5576000330038,913925
-Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,200,96,1590.790750022279,913925
-Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",fp32,1024,200,96,10.295621337860439,913925
-Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,200,96,10.284163183570172,913925
+Ours-MS,network,bf16,1,,,30.536749924067408,1319302
+Ours-MS,network,bf16,1024,,,0.09106806641057119,1319302
+Ours-MS w/o bank rollout,network,bf16,1,,,30.053050024434924,1319302
+Ours-MS w/o bank rollout,network,bf16,1024,,,0.09135541984051088,1319302
+Ours,network,fp32,1,,,2.265900024212897,913925
+Ours,network,bf16,1,,,3.1011999817565084,913925
+Ours,network,fp32,1024,,,0.03327958989984836,913925
+Ours,network,bf16,1024,,,0.021777343704343366,913925
+Direct,network,fp32,1,,,1.7011500312946737,913413
+Direct,network,bf16,1,,,2.887149981688708,913413
+Direct,network,fp32,1024,,,0.03281948238509358,913413
+Direct,network,bf16,1024,,,0.0224627441980374,913413
+Transformer,network,fp32,1,,,2.0653000101447105,2641667
+Transformer,network,bf16,1,,,2.9094499768689275,2641667
+Transformer,network,fp32,1024,,,0.10975605465546323,2641667
+Transformer,network,bf16,1024,,,0.08988837896595214,2641667
+DLinear,network,fp32,1,,,0.25135005125775933,131584
+DLinear,network,bf16,1,,,0.3112000413239002,131584
+DLinear,network,fp32,1024,,,0.00024926754349507974,131584
+DLinear,network,bf16,1024,,,0.0003291992243248387,131584
+PatchTST,network,fp32,1,,,1.3441999908536673,3681536
+PatchTST,network,bf16,1,,,1.8343999981880188,3681536
+PatchTST,network,fp32,1024,,,0.02793002926182453,3681536
+PatchTST,network,bf16,1024,,,0.01782895503765758,3681536
+iTransformer,network,fp32,1,,,1.1759999906644225,1711616
+iTransformer,network,bf16,1,,,1.6445499495603144,1711616
+iTransformer,network,fp32,1024,,,0.0012651855172407522,1711616
+iTransformer,network,bf16,1024,,,0.0016687500306034053,1711616
+AF-CILN,network,fp32,1,,,7.553900009952486,112560
+AF-CILN,network,bf16,1,,,16.925950010772794,112560
+AF-CILN,network,fp32,1024,,,0.007074755842495506,112560
+AF-CILN,network,bf16,1024,,,0.016871044920208078,112560
+PIT,network,fp32,1,,,7.437449938151985,5868037
+PIT,network,bf16,1,,,9.359149960801005,5868037
+PIT,network,fp32,1024,,,0.19064877926666668,5868037
+PIT,network,bf16,1024,,,0.14063784180962102,5868037
+iTransformer+prior,network,fp32,1,,,1.186500012408942,1711617
+iTransformer+prior,network,bf16,1,,,1.693999976851046,1711617
+iTransformer+prior,network,fp32,1024,,,0.0013865722507944156,1711617
+iTransformer+prior,network,bf16,1024,,,0.0018006836626227596,1711617
+iTransformer+prior+feats,network,fp32,1,,,1.2616500025615096,1711617
+iTransformer+prior+feats,network,bf16,1,,,1.7090500332415104,1711617
+iTransformer+prior+feats,network,fp32,1024,,,0.002491503892088076,1711617
+iTransformer+prior+feats,network,bf16,1024,,,0.0017910156202560756,1711617
+iTransformer+prior+series,network,fp32,1,,,1.394549966789782,1711617
+iTransformer+prior+series,network,bf16,1,,,1.818199991248548,1711617
+iTransformer+prior+series,network,fp32,1024,,,0.0037723145283052872,1711617
+iTransformer+prior+series,network,bf16,1024,,,0.002117480505603453,1711617
+PIT+prior,network,fp32,1,,,7.856550044380128,5868038
+PIT+prior,network,bf16,1,,,9.66514996252954,5868038
+PIT+prior,network,fp32,1024,,,0.19143061524573568,5868038
+PIT+prior,network,bf16,1024,,,0.14169575194955542,5868038
+A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1,50,48,3832.5531000155024,0
+A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1024,50,48,3.803676562597502,0
+A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,1,50,48,647.1362000447698,0
+VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,1,50,48,8665.13079998549,0
+A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,256,50,48,4.592148828123754,0
+VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,256,50,48,61.18161679660261,0
+A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1,200,96,7575.888100021984,0
+A_fit,"fit_track+rollout (cuda, 5 LM it)",fp64,1024,200,96,7.530700293045811,0
+A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,1,200,96,1289.681099995505,0
+VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,1,200,96,13688.341500004753,0
+A_fit,"fit_track+rollout (cpu, 5 LM it)",fp64,256,200,96,9.053646093889256,0
+VARMA-PM,"sliding fits+VARMA+rollout (cpu, 5 LM it)",fp64,256,200,96,97.05294257810237,0
+Ours-MS,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,50,48,677.6729499688372,1319302
+Ours-MS,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,50,48,3.8947446290080734,1319302
+Ours-MS,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,200,96,1320.2178499195725,1319302
+Ours-MS,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,200,96,7.621768359456382,1319302
+Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",fp32,1,50,48,649.4021000689827,913925
+Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,50,48,650.2374000265263,913925
+Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",fp32,1024,50,48,3.8369561524973506,913925
+Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,50,48,3.8254539063018456,913925
+Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",fp32,1,200,96,1291.947000019718,913925
+Ours,"A_fit+network: fit_track+rollout (cpu, 5 LM it)",bf16,1,200,96,1292.7822999772616,913925
+Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",fp32,1024,200,96,7.5639798829456595,913925
+Ours,"A_fit+network: fit_track+rollout (cuda, 5 LM it)",bf16,1024,200,96,7.5524776367501545,913925

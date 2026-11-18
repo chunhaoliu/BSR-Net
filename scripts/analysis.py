@@ -25,7 +25,7 @@ AUX = {"ours2s": 1, "itransformer_priors": 0, "pit": 0, "af_ciln": 0}
 def load(variant, seed, aux=None):
     name = T.run_name(variant, AUX.get(variant, 0) if aux is None else aux, seed) + T.EPOCH100.get(variant, "")
     ck = torch.load(T.OUT / "checkpoints" / f"{name}.pt", map_location=DEV)
-    model = T.build_model(variant, DEV); model.load_state_dict(ck["model"]); model.eval()
+    model = T.build_model(variant, DEV); model.load_state_dict(ck["model"]); model.eval(); model.rel_aero = ck.get("rel_aero", False)
     return model, {k: v.to(DEV) for k, v in ck["stats"].items()}
 
 
@@ -35,6 +35,7 @@ def forward(model, stats, ex, batch=2048):
     with torch.no_grad():
         for b in range(0, len(ex["hist"]), batch):
             e = {k: v[b:b + batch].to(DEV) for k, v in ex.items()}
+            e = T.rel_aero_view(e) if model.rel_aero else e
             hist, prior_n, feats = T.normalize(e, stats)
             if getattr(model, "maneuver", False):
                 y, s, bank = T.maneuver_forward(model, e, stats, hist, prior_n, feats)
@@ -121,6 +122,7 @@ def flops():
     for variant in ("ours2s", "itransformer_priors", "pit", "af_ciln"):
         model, stats = load(variant, 42)
         e = {k: v[:1].to(DEV) for k, v in ex[50].items()}
+        e = T.rel_aero_view(e) if model.rel_aero else e
         hist, prior_n, feats = T.normalize(e, stats)
         with FlopCounterMode(display=False) as counter:  # grad mode on: FlopCounterMode needs it for some kernels
             if variant == "ours2s":  # encoder and both decoders; the elementwise fp64 rollout is not counted

@@ -47,18 +47,21 @@ def fig_error_time(out):
 
 
 def fig_noise(out):
-    fig, axes = plt.subplots(1, 3, figsize=(7.0, 2.3), sharey=True)
-    for ax, (split, title) in zip(axes, (("holdout", "Nominal dynamics"), ("mismatch15", "Density mismatch 15%"),
-                                         ("mismatch30", "Density mismatch 30%"))):
+    fig, axes = plt.subplots(2, 3, figsize=(7.0, 4.4), sharey=True)
+    panels = (("holdout", "Nominal dynamics"), ("mismatch15", "Density mismatch 15%"), ("mismatch30", "Density mismatch 30%"),
+              ("mismatchaero110_90", r"$C_L\times1.1$, $C_D\times0.9$"), ("mismatchaero90_110", r"$C_L\times0.9$, $C_D\times1.1$"))
+    for ax, (split, title) in zip(axes.flat, panels):
         d = pd.read_csv(RES / f"{split}_summary.csv")
         d = d[(d.group == "overall") & (d.horizon_s == 256)]
         for name, (color, ls) in STYLE.items():
             r = d[d.method == name].sort_values("sigma_m")
             ax.plot(r.sigma_m, r.ade_mean, color=color, ls=ls, marker="o", ms=3.5, mec="white", mew=0.6, label=LABEL[name])
         ax.set_title(title, fontsize=9); ax.set_xlabel(r"Measurement noise $\sigma$ (m)"); ax.set_xticks([0, 50, 100, 200])
-    axes[0].set_ylabel("ADE over 256 s (km)"); axes[0].set_ylim(bottom=0)
-    fig.legend(*axes[0].get_legend_handles_labels(), loc="upper center", ncol=4, bbox_to_anchor=(0.5, 1.08))
-    fig.savefig(out / "fig_noise_mismatch.pdf"); plt.close(fig)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("ADE over 256 s (km)")
+    axes[0, 0].set_ylim(bottom=0); axes[1, 2].axis("off")
+    axes[1, 2].legend(*axes[0, 0].get_legend_handles_labels(), loc="center", frameon=False)
+    fig.tight_layout(); fig.savefig(out / "fig_noise_mismatch.pdf"); plt.close(fig)
 
 
 def fig_case(out, sigma=50):
@@ -71,6 +74,7 @@ def fig_case(out, sigma=50):
     idx = np.flatnonzero(ex["label"].numpy() > 0)
     with torch.no_grad():
         e = {k: v[idx].to(device) for k, v in ex.items()}
+        e = T.rel_aero_view(e) if ck.get("rel_aero", False) else e
         pred, _, bank = T.maneuver_forward(model, e, stats, *T.normalize(e, stats))
     err_o = (pred - e["target"]).norm(dim=-1).mean(1).cpu().numpy(); err_a = (e["prior"] - e["target"]).norm(dim=-1).mean(1).cpu().numpy()
     mid = np.flatnonzero((err_a > np.percentile(err_a, 40)) & (err_a < np.percentile(err_a, 60)))  # typical prior error
@@ -141,7 +145,7 @@ def fig_dataset(out):
 
 def _load(variant, aux, seed, device):
     ck = torch.load(T.OUT / "checkpoints" / f"{T.run_name(variant, aux, seed)}.pt", map_location=device)
-    model = T.build_model(variant, device); model.load_state_dict(ck["model"]); model.eval()
+    model = T.build_model(variant, device); model.load_state_dict(ck["model"]); model.eval(); model.rel_aero = ck.get("rel_aero", False)
     return model, {k: v.to(device) for k, v in ck["stats"].items()}
 
 
@@ -151,6 +155,7 @@ def _predict(model, stats, ex, idx, device):
     with torch.no_grad():
         for b in range(0, len(idx), 2048):
             e = {k: v[idx[b:b + 2048]].to(device) for k, v in ex.items()}
+            e = T.rel_aero_view(e) if model.rel_aero else e
             h, p, f = T.normalize(e, stats)
             if getattr(model, "maneuver", False):
                 y = T.maneuver_forward(model, e, stats, h, p, f)[0]

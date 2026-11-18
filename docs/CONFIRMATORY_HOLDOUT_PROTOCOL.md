@@ -22,6 +22,12 @@ The test set is generated once, independently of the development data, and is us
 `1 + A sin(2 pi h / 8 km)`, while identification, prior, and training data keep the U.S. Standard Atmosphere 1976.
 The paper uses `A = 0.15` and `A = 0.30` (`hgv_confirmatory_holdout_mismatch15.npz`, `..._mismatch30.npz`).
 
+## Aerodynamic-mismatch sets
+
+`--aero-scale K_L K_D` regenerates the same 360 trajectories with the true CAV-H lift and drag coefficients scaled by
+`K_L` and `K_D` (the vehicle's own guidance uses the scaled lift), while all predictors keep the nominal training data.
+The paper uses `(1.1, 0.9)` and `(0.9, 1.1)` (`hgv_confirmatory_holdout_mismatchaero110_90.npz`, `..._mismatchaero90_110.npz`).
+
 ## Evaluation contract
 
 - Models are trained and selected on the development set only; no model, checkpoint, normalization statistic, or

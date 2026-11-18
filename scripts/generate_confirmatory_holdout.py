@@ -73,11 +73,32 @@ class DensityMismatchSimulator(MultiregimeHGVSimulator):
         return density * (1.0 + self.amplitude * np.sin(2.0 * np.pi * max(float(h), 0.0) / MISMATCH_WAVELENGTH_M)), sound_speed
 
 
+class AeroMismatchSimulator(MultiregimeHGVSimulator):
+    """Vehicle-uncertainty stress test: truth C_L, C_D = CAV-H x (k_L, k_D). The vehicle's own guidance knows the
+    scaled lift (quasi-equilibrium alpha uses it); the predictors keep the nominal training data."""
+
+    scale = (1.0, 1.0)
+
+    def aerodynamic_coefficients(self, alpha, bank, Ma):
+        cl, cd, side = super().aerodynamic_coefficients(alpha, bank, Ma)
+        return cl * self.scale[0], cd * self.scale[1], side
+
+    def _equilibrium_alpha(self, state, bank, profile):
+        nominal_area = self.S
+        self.S = nominal_area * self.scale[0]  # required nominal C_L = required lift / (q S k_L)
+        try:
+            return super()._equilibrium_alpha(state, bank, profile)
+        finally:
+            self.S = nominal_area
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=OUTPUT)
     parser.add_argument("--density-mismatch", type=float, default=0.0,
                         help="amplitude A of the stress-test density bias; writes hgv_confirmatory_holdout_mismatch<100A>.npz")
+    parser.add_argument("--aero-scale", type=float, nargs=2, default=None, metavar=("K_L", "K_D"),
+                        help="truth C_L, C_D scale factors; writes hgv_confirmatory_holdout_mismatchaero<100K_L>_<100K_D>.npz")
     return parser.parse_args(argv)
 
 
@@ -108,11 +129,14 @@ def confirmatory_design_rows() -> list[tuple[str, str, np.ndarray]]:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    mismatch = args.density_mismatch
+    mismatch, aero = args.density_mismatch, args.aero_scale
+    aero_tag = f"aero{round(100 * aero[0])}_{round(100 * aero[1])}" if aero else ""
     if mismatch and args.output == OUTPUT:
         args.output = OUTPUT.with_name(f"hgv_confirmatory_holdout_mismatch{round(100 * mismatch)}.npz")
-    protocol = PROTOCOL + (f"_density_mismatch{round(100 * mismatch)}" if mismatch else "")
-    role = "model_mismatch_stress_test" if mismatch else "untouched_confirmatory_holdout"
+    if aero and args.output == OUTPUT:
+        args.output = OUTPUT.with_name(f"hgv_confirmatory_holdout_mismatch{aero_tag}.npz")
+    protocol = PROTOCOL + (f"_density_mismatch{round(100 * mismatch)}" if mismatch else "") + (f"_{aero_tag}" if aero else "")
+    role = "model_mismatch_stress_test" if mismatch or aero else "untouched_confirmatory_holdout"
     output = args.output.expanduser().resolve()
     manifest_path = output.with_suffix(".manifest.json")
     if output.exists() or manifest_path.exists():
@@ -128,8 +152,10 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("Confirmatory design does not contain exactly 360 rows.")
 
     rng = np.random.default_rng(GENERATION_SEED)
-    simulator = DensityMismatchSimulator() if mismatch else MultiregimeHGVSimulator()
+    simulator = DensityMismatchSimulator() if mismatch else AeroMismatchSimulator() if aero else MultiregimeHGVSimulator()
     simulator.amplitude = mismatch
+    if aero:
+        simulator.scale = tuple(aero)
     states_rows: list[np.ndarray] = []
     alpha_rows: list[np.ndarray] = []
     bank_command_rows: list[np.ndarray] = []
@@ -296,6 +322,7 @@ def main(argv: list[str] | None = None) -> int:
         "parent_training_protocol": "hgv_multiregime_state_v2_1",
         "evidence_role": role,
         "density_mismatch": {"amplitude": mismatch, "wavelength_m": MISMATCH_WAVELENGTH_M},
+        "aero_scale": list(aero) if aero else None,
         "generation_seed": GENERATION_SEED,
         "trajectory_count": TRAJECTORY_COUNT,
         "trajectory_id_range": [TRAJECTORY_ID_START, TRAJECTORY_ID_START + TRAJECTORY_COUNT - 1],
